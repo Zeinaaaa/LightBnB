@@ -17,21 +17,6 @@ const pool = new Pool({
   console.log(e.message);
 });
 
-
-// const getAllProperties = (options, limit = 10) => {
-//   pool
-//     .query(`SELECT * FROM properties LIMIT $1`, [limit])
-//     .then((result) => {
-//       result.rows
-//       console.log(result.rows);
-//     })
-//     .catch((err) => {
-//       console.log(err.message);
-//     });
-//     const limitedProperties = {};   for (let i = 1; i <= limit; i++) {     limitedProperties[i] = properties[i];   }   return Promise.resolve(limitedProperties);
-// };
-
-
 /// Users
 
 /**
@@ -47,7 +32,6 @@ const getUserWithEmail = function(email) {
     `
   return pool.query(queryString, [email])
     .then(res => {
-      console.log("res.rows[0]:", res.rows[0])
       return res.rows[0];
     })
     .catch(err => console.log("err:", err.message))
@@ -104,7 +88,23 @@ exports.addUser = addUser;
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function(guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  const queryString = `
+  SELECT properties.*, res.*, avg(rating) FROM properties
+  JOIN property_reviews AS reviews
+  ON reviews.property_id = properties.id
+  JOIN reservations AS res
+  ON res.property_id = reviews.property_id
+  JOIN users
+  ON reviews.guest_id = users.id
+  WHERE res.guest_id = $1
+  AND end_date < now()::date
+  GROUP BY properties.id, res.id
+  ORDER BY start_date
+  LIMIT $2  `;
+  return pool.query(queryString, [guest_id, limit])
+    .then(res => res.rows)
+    .catch(err => console.log(err.message))
+  // return getAllProperties(null, 2);
 }
 exports.getAllReservations = getAllReservations;
 
@@ -116,21 +116,6 @@ exports.getAllReservations = getAllReservations;
  * @param {*} limit The number of results to return.
  * @return {Promise<[{}]>}  A promise to the properties.
  */
-// const getAllProperties = function(options, limit = 10) {
-//   return Promise.resolve (pool
-//     .query(`SELECT * FROM properties LIMIT $1`, [limit])
-//     .then((result) => 
-//     { console.log(result.rows)
-//     result.rows})
-//     .catch((err) => {
-//       console.log(err.message);
-//     }));
-  // const limitedProperties = {};
-  // for (let i = 1; i <= limit; i++) {
-  //   limitedProperties[i] = properties[i];
-  // }
-  // return Promise.resolve(limitedProperties);
-// }
 const getAllProperties = (options, limit = 10) => {
   return pool
     .query(`SELECT * FROM properties LIMIT $1`, [limit])
